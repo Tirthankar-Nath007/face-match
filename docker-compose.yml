@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # Face Match Application
+  fm-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: face-match-app
+    ports:
+      - "8080:8080"
+    environment:
+      # Database Configuration (Oracle)
+      - SPRING_DATASOURCE_URL=jdbc:oracle:thin:@oracle-db:1521/FREE
+      - SPRING_DATASOURCE_USERNAME=system
+      - SPRING_DATASOURCE_PASSWORD=oracle
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=oracle.jdbc.OracleDriver
+      
+      # JPA/Hibernate Configuration
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_SHOW_SQL=false
+      - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.OracleDialect
+      - SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL=true
+      
+      # Application Configuration
+      - SERVER_PORT=8080
+      
+      # Custom Properties (these will be loaded from .env if present)
+      - DIGIO_CLIENT_ID=${DIGIO_CLIENT_ID:-your_digio_client_id}
+      - DIGIO_CLIENT_SECRET=${DIGIO_CLIENT_SECRET:-your_digio_client_secret}
+      - DIGIO_CALLBACK_URL=${DIGIO_CALLBACK_URL:-http://localhost:8080/api/v1/webhook}
+      
+      # Security Configuration
+      - SECURITY_API_KEY=${SECURITY_API_KEY:-20CXR84WH8O2UMSZ}
+      - SECURITY_JWT_SECRET=${SECURITY_JWT_SECRET:-your_jwt_secret_key_here}
+      - SECURITY_JWT_EXPIRATION_MS=${SECURITY_JWT_EXPIRATION_MS:-86400000}
+    depends_on:
+      - oracle-db
+    networks:
+      - fm-network
+    restart: unless-stopped
+
+  # Oracle Database (for local development)
+  oracle-db:
+    image: gvenzl/oracle-free:21-slim
+    container_name: oracle-db
+    ports:
+      - "1521:1521"
+    environment:
+      - ORACLE_PASSWORD=oracle
+      - APP_USER=app_user
+      - APP_PASSWORD=app_password
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+    networks:
+      - fm-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sqlplus", "-S", "system/oracle@localhost:1521/FREE", "SELECT", "1", "FROM", "DUAL"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  fm-network:
+    driver: bridge
+
+volumes:
+  oracle-data:
