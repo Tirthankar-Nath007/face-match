@@ -7,7 +7,7 @@ This project includes Docker configuration to run the application without needin
 - [Docker](https://www.docker.com/products/docker-desktop) installed
 - [Docker Compose](https://docs.docker.com/compose/install/) installed
 
-## Quick Start
+## Configuration
 
 ### 1. Configure Environment Variables
 
@@ -17,76 +17,51 @@ Copy `.env.example` to `.env` and fill in your values:
 cp .env.example .env
 ```
 
-Edit `.env` with your actual configuration values.
+Edit `.env` with your actual configuration:
 
-### 2. Build and Run with Docker Compose
+```env
+# Database Configuration (your external Oracle DB)
+SPRING_DATASOURCE_URL=jdbc:oracle:thin:@your-db-host:1521/your-service
+SPRING_DATASOURCE_USERNAME=your-username
+SPRING_DATASOURCE_PASSWORD=your-password
+SPRING_DATASOURCE_DRIVER_CLASS_NAME=oracle.jdbc.OracleDriver
 
-```bash
-# Build and start all services (FM app + Oracle DB)
-docker-compose up --build
+# Digio Configuration
+DIGIO_CLIENT_ID=your_digio_client_id
+DIGIO_CLIENT_SECRET=your_digio_client_secret
+DIGIO_CALLBACK_URL=http://your-callback-url:8080/api/v1/webhook
 
-# Or run in detached mode
-docker-compose up --build -d
+# Security Configuration
+SECURITY_API_KEY=your_api_key
+SECURITY_JWT_SECRET=your_jwt_secret_key_here_min_256_bits_long
+SECURITY_JWT_EXPIRATION_MS=86400000
 ```
 
-### 3. Access the Application
+## Running the Application
 
-- **Face Match API**: http://localhost:8080
-- **Oracle Database**: localhost:1521 (FREE PDB)
+### Build and Run
+
+```bash
+# Build and start the container
+docker compose up --build -d
+
+# View logs
+docker compose logs -f
+
+# Stop the container
+docker compose down
+```
 
 ## Useful Commands
 
-### View Logs
-
 ```bash
-# All services
-docker-compose logs -f
+# Rebuild after code changes
+docker compose build --no-cache
+docker compose up -d
 
-# Just the FM app
-docker-compose logs -f fm-app
+# Restart the service
+docker compose restart fm-app
 
-# Just the Oracle DB
-docker-compose logs -f oracle-db
+# View logs
+docker compose logs -f face-match-app
 ```
-
-### Stop Services
-
-```bash
-# Stop all services
-docker-compose down
-
-# Stop and remove volumes (WARNING: destroys database data)
-docker-compose down -v
-```
-
-### Rebuild After Code Changes
-
-```bash
-docker-compose build --no-cache
-docker-compose up
-```
-
-## Development Workflow
-
-1. Make code changes in your IDE
-2. Rebuild the Docker image: `docker-compose build`
-3. Restart the service: `docker-compose restart fm-app`
-
-## Connecting to Oracle Database
-
-You can connect to the Oracle database using:
-
-- **Host**: localhost (or oracle-db from docker network)
-- **Port**: 1521
-- **Service Name**: FREE
-- **Username**: system
-- **Password**: oracle
-
-Example SQL connection string:
-```
-jdbc:oracle:thin:@localhost:1521/FREE
-```
-
-## Production Deployment
-
-For production, remove the `oracle-db` service and configure your external database connection via environment variables.

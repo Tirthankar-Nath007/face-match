@@ -79,6 +79,15 @@
 			<version>19.3.0.0</version>
 		</dependency>
 
+		<!-- PostgreSQL JDBC driver (if needed) -->
+		<!--
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		-->
+
 		<!-- Lombok for boilerplate code reduction -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>
