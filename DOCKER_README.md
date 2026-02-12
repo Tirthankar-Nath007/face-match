@@ -29,7 +29,7 @@ SPRING_DATASOURCE_DRIVER_CLASS_NAME=oracle.jdbc.OracleDriver
 # Digio Configuration
 DIGIO_CLIENT_ID=your_digio_client_id
 DIGIO_CLIENT_SECRET=your_digio_client_secret
-DIGIO_CALLBACK_URL=http://your-callback-url:8080/api/v1/webhook
+DIGIO_CALLBACK_URL=http://your-callback-url:8082/api/v1/webhook
 
 # Security Configuration
 SECURITY_API_KEY=your_api_key

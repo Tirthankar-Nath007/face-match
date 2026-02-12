@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
     container_name: face-match-app
     ports:
-      - "8080:8080"
+      - "8082:8080"
     environment:
       # Database Configuration (configure these to point to your external DB)
       - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
