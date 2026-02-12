@@ -1,15 +1,23 @@
-# Build stage
+# Build stage - using Maven wrapper from the project
 FROM eclipse-temurin:17-jdk-alpine AS builder
 
 WORKDIR /app
 
+# Copy Maven wrapper and settings
+COPY mvnw ./mvnw
+COPY mvnw.cmd ./mvnw.cmd
+COPY .mvn ./.mvn
+
 # Copy pom.xml and download dependencies first (for caching)
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
+
+# Build with Maven wrapper
+RUN chmod +x ./mvnw
+RUN ./mvnw dependency:go-offline -B || true  # Try to download deps, ignore errors
 
 # Copy source code and build
 COPY src ./src
-RUN mvn package -DskipTests -B
+RUN ./mvnw package -DskipTests -B
 
 # Runtime stage
 FROM eclipse-temurin:17-jre-alpine
