@@ -1,0 +1,91 @@
+spring:
+  datasource:
+    url: "jdbc:oracle:thin:@//10.223.0.13:1521/APIUAPDB.uatdbprvsnt.uatvcn.oraclevcn.com"
+    username: DEV_5077947
+    password: Goodluck123$
+    driver-class-name: oracle.jdbc.OracleDriver
+    hikari:
+      # Connection Pool Configuration
+      maximum-pool-size: 5              # Max connections - reduced from default 10
+      minimum-idle: 1                   # Min idle connections
+      connection-timeout: 20000         # 20 seconds timeout
+      idle-timeout: 300000              # 5 minutes idle timeout
+      max-lifetime: 1200000             # 20 minutes max lifetime
+      auto-commit: true
+      # Validation query to ensure connections are alive
+      connection-test-query: "SELECT 1 FROM DUAL"
+      validation-timeout: 5000          # 5 seconds validation timeout
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false                     # Changed to false - too verbose with active connections
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.OracleDialect
+        format_sql: false
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+
+  sql:
+    init:
+      mode: never
+      # FIRST TIME SETUP ONLY:
+      # 1. Uncomment 'schema-locations' below
+      # 2. Change 'mode' to 'always'
+      # 3. Start the application to create tables
+      # 4. Change 'mode' back to 'never'
+      # 5. Stop application and run schema-triggers-oracle.sql manually via SQL*Plus
+      # schema-locations: classpath:schema-oracle.sql
+
+# Digio API configuration
+digio:
+  auth-token: ${DIGIO_AUTH_TOKEN}
+  callback-url: ${CALLBACK_URL:https://tvscredit.com}
+  expire-days: ${DIGIO_EXPIRE_DAYS:90}
+  template-name: ${DIGIO_TEMPLATE_NAME:SELFIE COMPARE}
+  endpoint: https://ext.digio.in:444/client/kyc/v2/request/with_template
+  base-url: https://ext.digio.in/#/gateway/login
+
+# Face Match API configuration
+fm:
+  jwt:
+    secret: ${FM_JWT_SECRET:faceMatchAppSecureJWTKeyChangeInProduction123456789}
+    ttl-minutes: ${FM_JWT_TTL_MINUTES:15}
+  # Admin API key is now read from FM_CONFIGFIELDS table (portfolio = "Admin")
+
+server:
+  port: 8080
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    org.springframework: WARN
+    org.springframework.boot: WARN
+    org.springframework.boot.autoconfigure: "OFF"
+    org.hibernate: INFO
+    com.zaxxer.hikari: INFO
+    org.postgresql: WARN
+    org.apache: WARN
+    java: WARN
+    java.lang.ProcessBuilder: "OFF"
+    java.security: WARN
+    jdk.event.security: "OFF"
+    jdk: "OFF"
+    sun: "OFF"
+    javax.management: "OFF"
+    com.sun: "OFF"
+    oracle.jdbc: "OFF"
+    org.springframework.boot.docker.compose: "OFF"
+    org.springframework.beans: "OFF"
+    org.springframework.context: "OFF"
+    org.springframework.core: "OFF"
+    org.springframework.web: "OFF"
+    com.tvscs.FM: DEBUG
+    # Suppress RMI/JMX internal logs
+    sun.rmi: "OFF"
+    sun.rmi.server: "OFF"
+    sun.rmi.transport: "OFF"
+    sun.rmi.loader: "OFF"
+    javax.management.remote.rmi: "OFF"
