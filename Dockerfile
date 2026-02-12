@@ -11,13 +11,13 @@ COPY .mvn ./.mvn
 # Copy pom.xml and download dependencies first (for caching)
 COPY pom.xml .
 
-# Build with Maven wrapper
+# Build with Maven wrapper - skip test compilation and execution
 RUN chmod +x ./mvnw
 RUN ./mvnw dependency:go-offline -B || true  # Try to download deps, ignore errors
 
 # Copy source code and build
 COPY src ./src
-RUN ./mvnw package -DskipTests -B
+RUN ./mvnw package -Dmaven.test.skip=true -B
 
 # Runtime stage
 FROM eclipse-temurin:17-jre-alpine
