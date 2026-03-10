@@ -19,13 +19,11 @@ import java.time.OffsetDateTime;
 public class TransactionLog {
 
     @Id
-    @Column(name = "id", length = 36)
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
+    private Long id;
 
-    @Column(name = "fm_transaction_id", length = 64)
-    private String fmTransactionId;
-
-    @Column(name = "vendor_id", length = 128)
+    @Column(name = "vendor_id", length = 64)
     private String vendorId;
 
     @Column(name = "endpoint", length = 4000, nullable = false)
@@ -63,6 +61,9 @@ public class TransactionLog {
 
     @Column(name = "portfolio", length = 100)
     private String portfolio;
+
+    @Column(name = "transaction_id", length = 36, nullable = false, unique = true)
+    private String transactionId;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

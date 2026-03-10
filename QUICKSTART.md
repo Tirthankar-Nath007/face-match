@@ -49,9 +49,11 @@ Verify triggers created:
 SELECT trigger_name, status FROM user_triggers WHERE trigger_name LIKE 'TRG_FM%';
 ```
 
-Should see 2 triggers:
-- `TRG_FM_CONFIGFIELDS_UPDATED_AT`
-- `TRG_FM_TRANSACTION_UPDATED_AT`
+Should see 4 triggers:
+- `TRG_FM_ACCOUNTS_UPDATED_AT`
+- `TRG_FM_TRANSACTIONS_UPDATED_AT`
+- `TRG_FM_AUDIT_UPDATED_AT`
+- `TRG_FM_TRANSACTIONS_MANDATORY_AUDIT`
 
 ## ✅ Step 4: Create Initial API Keys (Admin Setup)
 
@@ -63,13 +65,11 @@ curl -X POST http://localhost:8080/api/v1/create-account \
   -H "X-Requested-By: admin" \
   -H "Content-Type: application/json" \
   -d '{
-    "apiKey": "abcd1234efgh5678",
-    "accountId": "123456789",
     "portfolio": "MyPortfolio"
   }'
 ```
 
-Response will include the configuration ID.
+Response will include the configuration ID, apiKey, and accountId.
 
 ## ✅ Step 5: Generate JWT Token
 
@@ -86,7 +86,7 @@ Response:
 ```json
 {
   "token": "eyJhbGc...",
-  "expiresAt": "2026-02-10T18:52:00Z"
+  "expiresAt": "2026-03-10T18:52:00Z"
 }
 ```
 
@@ -104,10 +104,10 @@ curl -X POST http://localhost:8080/api/v1/face-match \
 
 ## ✅ Step 7: Verify Transaction Logging
 
-Query the transaction log table:
+Query the audit log table:
 ```sql
-SELECT id, fm_transaction_id, vendor_id, endpoint, created_at, created_by 
-FROM fm_transaction 
+SELECT id, vendor_id, endpoint, created_at, created_by 
+FROM fm_audit 
 ORDER BY created_at DESC 
 FETCH FIRST 10 ROWS ONLY;
 ```
@@ -126,22 +126,27 @@ FETCH FIRST 10 ROWS ONLY;
 - [ ] Triggers should be created manually
 
 ### Issue: Cannot authenticate to /face-match
-- [ ] Verify API key exists in fm_configfields: `SELECT * FROM fm_configfields WHERE api_key = 'your_key';`
+- [ ] Verify API key exists in fm_accounts: `SELECT * FROM fm_accounts WHERE api_key = 'your_key';`
 - [ ] Verify is_active = 1
 - [ ] Verify accountId matches in both API key header and JWT claims
 - [ ] Check JWT token hasn't expired
 
-### Issue: No transactions in fm_transaction
+### Issue: No audit logs
 - [ ] Check that /face-match requests are being made
-- [ ] Review application logs for transaction logging errors
-- [ ] Verify user has INSERT privilege on fm_transaction table
+- [ ] Review application logs for audit logging errors
+- [ ] Verify user has INSERT privilege on fm_audit table
+
+### Issue: Trigger prevents transaction creation
+- [ ] The trigger `TRG_FM_TRANSACTIONS_MANDATORY_AUDIT` requires at least one audit log entry before creating a transaction
+- [ ] Webhook processing inserts audit log first, then creates/updates transaction
+- [ ] For testing, you may need to disable the trigger temporarily
 
 ## 📋 Useful SQL Queries
 
 ### View API Key Configurations
 ```sql
 SELECT id, api_key, account_id, portfolio, is_active, created_at 
-FROM fm_configfields 
+FROM fm_accounts 
 ORDER BY created_at DESC;
 ```
 
@@ -150,20 +155,27 @@ ORDER BY created_at DESC;
 SELECT COUNT(*) as total_transactions, 
        COUNT(DISTINCT vendor_id) as unique_vendors,
        COUNT(DISTINCT created_by) as unique_accounts
-FROM fm_transaction;
+FROM fm_audit;
 ```
 
 ### Recent Transactions
 ```sql
-SELECT fm_transaction_id, vendor_id, endpoint, created_by, created_at 
-FROM fm_transaction 
-WHERE created_at > SYSDATE - 7  -- Last 7 days
+SELECT vendor_id, endpoint, created_by, created_at 
+FROM fm_audit 
+WHERE created_at > SYSTATE - 7  -- Last 7 days
+ORDER BY created_at DESC;
+```
+
+### View Audit Logs by Vendor
+```sql
+SELECT * FROM fm_audit 
+WHERE vendor_id = 'KID260211170917566L9QB7LFSO9XB4L'
 ORDER BY created_at DESC;
 ```
 
 ### Deactivate API Key
 ```sql
-UPDATE fm_configfields 
+UPDATE fm_accounts 
 SET is_active = 0, updated_by = 'admin' 
 WHERE api_key = 'abcd1234efgh5678';
 COMMIT;

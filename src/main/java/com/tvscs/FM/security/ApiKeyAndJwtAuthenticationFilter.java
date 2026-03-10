@@ -1,7 +1,7 @@
 package com.tvscs.FM.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tvscs.FM.repository.ConfigFieldRepository;
+import com.tvscs.FM.repository.AccountRepository;
 import com.tvscs.FM.utils.JwtTokenProvider;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -29,15 +29,15 @@ import java.util.regex.Pattern;
 public class ApiKeyAndJwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final ConfigFieldRepository configFieldRepository;
+    private final AccountRepository accountRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // Pattern for validating API key format (16 alphanumeric characters)
     private static final Pattern API_KEY_PATTERN = Pattern.compile("^[A-Za-z0-9]{16}$");
 
-    public ApiKeyAndJwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, ConfigFieldRepository configFieldRepository) {
+    public ApiKeyAndJwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, AccountRepository accountRepository) {
         this.jwtTokenProvider = jwtTokenProvider;
-        this.configFieldRepository = configFieldRepository;
+        this.accountRepository = accountRepository;
     }
 
     @Override
@@ -96,15 +96,15 @@ public class ApiKeyAndJwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
             // Verify that the account exists and is active in the database
-            var configField = configFieldRepository.findByApiKeyAndIsActive(apiKey, 1);
+            var configField = accountRepository.findByApiKeyAndIsActive(apiKey, 1);
             if (configField.isEmpty()) {
                 log.warn("API key not found or not active: {}", apiKey);
                 sendUnauthorizedError(response, path, "API key not found or inactive");
                 return;
             }
 
-            var cf = configField.get();
-            if (!cf.getAccountId().equals(accountId)) {
+            var account = configField.get();
+            if (!account.getAccountId().equals(accountId)) {
                 sendUnauthorizedError(response, path, "Account ID mismatch");
                 return;
             }

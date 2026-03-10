@@ -1,9 +1,23 @@
 # FM (Face Match) - Oracle Database Setup Guide
 
 ## Overview
-The FM application uses Oracle 19c+ with two main tables:
-- `fm_configfields`: Stores API key configurations
-- `fm_transaction`: Stores face-match transaction logs
+The FM application uses Oracle 19c+ with three main tables:
+- `fm_accounts`: Stores API key configurations (formerly fm_configfields)
+- `fm_transactions`: Stores face-match transaction records
+- `fm_audit`: Stores all API request/response logs
+
+## Schema Changes (March 2026 Migration)
+
+The following changes were made to the schema:
+- Table `fm_configfields` renamed to `fm_accounts`
+- All tables: Primary key `ID` changed from `VARCHAR2(36)` to `NUMBER` (auto-increment)
+- All tables: New column `TRANSACTION_ID VARCHAR2(36) NOT NULL UNIQUE` (UUID format)
+- `fm_transactions`: Column `KID` renamed to `VENDOR_ID`
+- `fm_transactions`: Column `REFERENCE_ID` renamed to `VENDOR_REFERENCE_ID`
+- `fm_transactions`: Column `TRANSACTION_ID` renamed to `VENDOR_TRANSACTION_ID`
+- `fm_audit`: Column `VENDOR_ID` removed
+- `fm_audit`: Column `FM_TRANSACTION_ID` renamed to `VENDOR_ID`
+- Foreign key: `FM_AUDIT.VENDOR_ID` references `FM_TRANSACTIONS.VENDOR_ID` (nullable)
 
 ## Database Initialization
 
@@ -50,12 +64,13 @@ After tables and triggers are created, verify the structure:
 
 ```sql
 -- Check tables
-DESC fm_configfields;
-DESC fm_transaction;
+DESC fm_accounts;
+DESC fm_transactions;
+DESC fm_audit;
 
 -- Check indexes
 SELECT index_name, table_name FROM user_indexes 
-WHERE table_name IN ('fm_configfields', 'fm_transaction');
+WHERE table_name IN ('FM_ACCOUNTS', 'FM_TRANSACTIONS', 'FM_AUDIT');
 
 -- Check triggers
 SELECT trigger_name, status FROM user_triggers 
@@ -64,7 +79,12 @@ WHERE trigger_name LIKE 'TRG_FM%';
 -- Check constraints
 SELECT constraint_name, constraint_type, table_name 
 FROM user_constraints 
-WHERE table_name IN ('FM_CONFIGFIELDS', 'FM_TRANSACTION');
+WHERE table_name IN ('FM_ACCOUNTS', 'FM_TRANSACTIONS', 'FM_AUDIT');
+
+-- Check foreign key
+SELECT constraint_name, constraint_type, status
+FROM user_constraints
+WHERE constraint_name = 'FK_FM_AUDIT_VENDOR_ID';
 ```
 
 ## Application Configuration
@@ -133,7 +153,7 @@ The application will start with:
 
 ### Admin-Protected Endpoints (require X-Admin-API-KEY header)
 - `POST /api/v1/create-account` - Create API key configuration
-- `PUT /api/v1/update-account/{configFieldId}` - Update account configuration
+- `PUT /api/v1/update-account/{accountId}` - Update account configuration
 
 ### Authenticated Endpoints (require X-API-KEY + Bearer JWT)
 - `POST /api/v1/face-match` - Submit face-match request
@@ -163,10 +183,10 @@ The application will start with:
 
 ## Data Retention & Cleanup
 
-Implement regular cleanup jobs for `fm_transaction`:
+Implement regular cleanup jobs for `fm_audit`:
 ```sql
--- Archive old transactions (>90 days)
-DELETE FROM fm_transaction WHERE created_at < TRUNC(SYSDATE) - 90;
+-- Archive old audit logs (>90 days)
+DELETE FROM fm_audit WHERE created_at < TRUNC(SYSDATE) - 90;
 COMMIT;
 ```
 
@@ -183,14 +203,15 @@ COMMIT;
 
 ### Index Usage
 Indexes are pre-created on:
-- `fm_configfields`: account_id, portfolio, is_active
-- `fm_transaction`: created_at, vendor_id
+- `fm_accounts`: account_id, portfolio, is_active
+- `fm_transactions`: created_at, vendor_id, status
+- `fm_audit`: created_at, vendor_id, account_id, endpoint, http_status, is_error
 
 ### Query Optimization
 For high-volume logging, consider:
-- Partitioning `fm_transaction` by created_at (monthly)
-- Archiving old transactions to separate table
-- Creating filtered indexes on is_active=1
+- Partitioning `fm_audit` by created_at (monthly)
+- Archiving old audit logs to separate table
+- Creating filtered indexes on is_error=0
 
 ### Connection Pooling
 HikariCP is configured with default settings. Adjust if needed:

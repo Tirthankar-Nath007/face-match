@@ -74,25 +74,21 @@ public class FaceMatchController {
                     notifyCustomer
             );
 
-            // Extract vendor_id (KID) from digioResponse for audit logging
-            String kid = (String) digioResponse.getParsed().getOrDefault("id", null);
-            if (kid != null) {
-                request.setAttribute("auth.kid", kid);
+            String vendorId = (String) digioResponse.getParsed().getOrDefault("id", null);
+            if (vendorId != null) {
+                request.setAttribute("auth.vendorId", vendorId);
             }
 
-            // Canonicalize multipart form data to JSON for audit logging
             Map<String, Object> canonicalPayload = MultipartCanonicalizer.fromFaceMatchRequest(
                     customerName, customerIdentifier, redirectFlag, image, base64Image);
             String canonicalJson = objectMapper.writeValueAsString(canonicalPayload);
             request.setAttribute("audit.payload", canonicalJson);
 
-            // Build redirect URL once if needed
             String redirectUrl = null;
             if (wantRedirect) {
                 redirectUrl = digioUrlBuilder.build(digioResponse.getParsed(), digioProperties.getCallbackUrl());
             }
 
-            // Return original response
             if (wantRedirect && redirectUrl != null) {
                 return ResponseEntity.ok(responseBuilder.success(Map.of("redirect_url", redirectUrl),
                         "Redirect URL generated", request));
@@ -118,11 +114,9 @@ public class FaceMatchController {
         try {
             log.info("======== Webhook Received ========");
 
-            // Extract webhook fields
             String webhookId = (String) payload.get("id");
             String eventType = (String) payload.get("event");
 
-            // Extract nested kyc_request data
             Map<String, Object> kycRequest = null;
             Map<String, Object> kycAction = null;
 
@@ -136,45 +130,41 @@ public class FaceMatchController {
                 }
             }
 
-            String kid = kycRequest != null ? (String) kycRequest.get("id") : null;
+            String vendorId = kycRequest != null ? (String) kycRequest.get("id") : null;
             String status = kycRequest != null ? (String) kycRequest.get("status") : null;
-            String referenceId = kycRequest != null ? (String) kycRequest.get("reference_id") : null;
-            String transactionId = kycRequest != null ? (String) kycRequest.get("transaction_id") : null;
+            String vendorReferenceId = kycRequest != null ? (String) kycRequest.get("reference_id") : null;
+            String vendorTransactionId = kycRequest != null ? (String) kycRequest.get("transaction_id") : null;
 
             log.info("Webhook ID: {}", webhookId);
             log.info("Event Type: {}", eventType);
-            log.info("KID: {}", kid);
+            log.info("Vendor ID: {}", vendorId);
             log.info("Status: {}", status);
-            log.info("Reference ID: {}", referenceId);
+            log.info("Vendor Reference ID: {}", vendorReferenceId);
 
-            // Set KID for audit logging interceptor
-            if (kid != null) {
-                request.setAttribute("auth.webhookKid", kid);
+            if (vendorId != null) {
+                request.setAttribute("auth.webhookVendorId", vendorId);
             }
 
-            // Upsert into FM_TRANSACTIONS (business state - no duplicates)
-            if (kid != null) {
-                if (transactionRepository.existsByKid(kid)) {
-                    // Update existing record
-                    Transaction existing = transactionRepository.findByKid(kid).orElse(null);
+            if (vendorId != null) {
+                if (transactionRepository.existsByVendorId(vendorId)) {
+                    Transaction existing = transactionRepository.findByVendorId(vendorId).orElse(null);
                     if (existing != null) {
                         existing.setStatus(status);
-                        existing.setReferenceId(referenceId);
-                        existing.setTransactionId(transactionId);
+                        existing.setVendorReferenceId(vendorReferenceId);
+                        existing.setVendorTransactionId(vendorTransactionId);
                         transactionRepository.save(existing);
-                        log.info("Updated FM_TRANSACTIONS for KID: {}", kid);
+                        log.info("Updated FM_TRANSACTIONS for VENDOR_ID: {}", vendorId);
                     }
                 } else {
-                    // Create new record
                     Transaction newTx = Transaction.builder()
-                            .id(UUID.randomUUID().toString())
-                            .kid(kid)
+                            .vendorId(vendorId)
                             .status(status)
-                            .referenceId(referenceId)
-                            .transactionId(transactionId)
+                            .vendorReferenceId(vendorReferenceId)
+                            .vendorTransactionId(vendorTransactionId)
+                            .transactionId(UUID.randomUUID().toString().toLowerCase())
                             .build();
                     transactionRepository.save(newTx);
-                    log.info("Created new FM_TRANSACTIONS record for KID: {}", kid);
+                    log.info("Created new FM_TRANSACTIONS record for VENDOR_ID: {}", vendorId);
                 }
             }
 
@@ -182,7 +172,7 @@ public class FaceMatchController {
 
             Map<String, String> responseData = new HashMap<>();
             responseData.put("status", "received");
-            responseData.put("kid", kid != null ? kid : "N/A");
+            responseData.put("vendorId", vendorId != null ? vendorId : "N/A");
 
             return ResponseEntity.ok(responseBuilder.success(responseData, "Webhook received and processed", request));
 

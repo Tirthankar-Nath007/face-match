@@ -16,10 +16,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Interceptor that logs all HTTP requests/responses to fm_audit table.
- * Captures endpoint, HTTP method, status, duration, client info, and payloads.
- */
 @Component
 @Slf4j
 public class AuditLoggingInterceptor implements HandlerInterceptor {
@@ -50,12 +46,10 @@ public class AuditLoggingInterceptor implements HandlerInterceptor {
         requestStartTime.remove();
 
         try {
-            // Extract account info from request attributes
             String accountId = (String) request.getAttribute("auth.accountId");
             String portfolio = (String) request.getAttribute("auth.portfolio");
             String createdBy = accountId != null ? accountId : "public";
 
-            // DEBUG: Log all request attributes
             log.debug("[AUDIT] Request attributes: auth.accountId={}, auth.portfolio={}",
                     accountId, portfolio);
             java.util.Enumeration<String> attrNames = request.getAttributeNames();
@@ -64,24 +58,19 @@ public class AuditLoggingInterceptor implements HandlerInterceptor {
                 log.debug("[AUDIT] Attribute: {} = {}", attrName, request.getAttribute(attrName));
             }
 
-            // Capture request body
             String reqPayload = extractRequestPayload(request);
             log.debug("[AUDIT] Extracted request payload: {}",
                     reqPayload != null ? reqPayload.substring(0, Math.min(200, reqPayload.length())) + "..." : "NULL");
 
-            // Capture response body
             String respPayload = extractResponsePayload(response);
             log.debug("[AUDIT] Extracted response payload: {}",
                     respPayload != null ? respPayload.substring(0, Math.min(200, respPayload.length())) + "..." : "NULL");
 
-            // Extract transaction ID
-            String fmTransactionId = extractTransactionId(request);
-            log.debug("[AUDIT] Transaction ID: {}", fmTransactionId);
+            String vendorId = extractVendorId(request);
+            log.debug("[AUDIT] Vendor ID: {}", vendorId);
 
-            // Build audit log entry
             TransactionLog auditLog = TransactionLog.builder()
-                    .id(UUID.randomUUID().toString())
-                    .fmTransactionId(fmTransactionId)
+                    .vendorId(vendorId)
                     .endpoint(request.getRequestURI())
                     .httpMethod(request.getMethod())
                     .payload(reqPayload)
@@ -94,11 +83,11 @@ public class AuditLoggingInterceptor implements HandlerInterceptor {
                     .requestDurationMs(durationMs)
                     .isError(ex != null || response.getStatus() >= 400 ? 1 : 0)
                     .errorMessage(ex != null ? truncateMessage(ex.getMessage()) : null)
+                    .transactionId(UUID.randomUUID().toString().toLowerCase())
                     .createdBy(createdBy)
                     .updatedBy(createdBy)
                     .build();
 
-            // Save asynchronously
             CompletableFuture.runAsync(() -> {
                 try {
                     auditLogRepository.save(auditLog);
@@ -126,7 +115,6 @@ public class AuditLoggingInterceptor implements HandlerInterceptor {
                 request.getContentLength());
 
         try {
-            // FIRST: Check if controller set canonicalized payload (for multipart form data)
             String controllerPayload = (String) request.getAttribute("audit.payload");
             if (controllerPayload != null && !controllerPayload.isEmpty()) {
                 log.debug("[AUDIT] Using controller-set canonicalized payload: {}",
@@ -134,7 +122,6 @@ public class AuditLoggingInterceptor implements HandlerInterceptor {
                 return truncatePayload(controllerPayload);
             }
             
-            // SECOND: Check if body was captured by RequestBodyCaptureFilter (for JSON bodies)
             String capturedBody = RequestBodyCaptureFilter.getCachedBody();
             if (capturedBody != null && !capturedBody.isEmpty()) {
                 log.debug("[AUDIT] Using captured body from CachingRequestWrapper: {}",
@@ -200,11 +187,11 @@ public class AuditLoggingInterceptor implements HandlerInterceptor {
         return request.getRemoteAddr();
     }
 
-    private String extractTransactionId(HttpServletRequest request) {
-        String kid = (String) request.getAttribute("auth.kid");
-        if (kid != null) return kid;
-        String webhookKid = (String) request.getAttribute("auth.webhookKid");
-        if (webhookKid != null) return webhookKid;
+    private String extractVendorId(HttpServletRequest request) {
+        String vendorId = (String) request.getAttribute("auth.vendorId");
+        if (vendorId != null) return vendorId;
+        String webhookVendorId = (String) request.getAttribute("auth.webhookVendorId");
+        if (webhookVendorId != null) return webhookVendorId;
         return null;
     }
 }

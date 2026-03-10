@@ -1,7 +1,7 @@
 package com.tvscs.FM.controllers;
 
 import com.tvscs.FM.dto.ApiResponse;
-import com.tvscs.FM.models.ConfigFields;
+import com.tvscs.FM.models.Account;
 import com.tvscs.FM.services.AccountService;
 import com.tvscs.FM.utils.ResponseBuilder;
 import jakarta.servlet.http.HttpServletRequest;
@@ -57,7 +57,7 @@ public class AccountController {
                         .body(responseBuilder.badRequest("Portfolio is required", null, httpRequest));
             }
 
-            ConfigFields created = accountService.createAccount(
+            Account created = accountService.createAccount(
                     portfolio.trim(),
                     createdBy
             );
@@ -139,7 +139,7 @@ public class AccountController {
                 }
             }
 
-            ConfigFields updated = accountService.updateAccount(
+            Account updated = accountService.updateAccount(
                     accountId,
                     rotateKey,
                     newApiKey,

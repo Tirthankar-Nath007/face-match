@@ -1,7 +1,7 @@
 package com.tvscs.FM.services;
 
-import com.tvscs.FM.models.ConfigFields;
-import com.tvscs.FM.repository.ConfigFieldRepository;
+import com.tvscs.FM.models.Account;
+import com.tvscs.FM.repository.AccountRepository;
 import com.tvscs.FM.utils.JwtTokenProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,15 +15,15 @@ import java.util.regex.Pattern;
 public class TokenService {
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final ConfigFieldRepository configFieldRepository;
+    private final AccountRepository accountRepository;
 
     // Patterns for validation
     private static final Pattern API_KEY_PATTERN = Pattern.compile("^[A-Za-z0-9]{16}$");
     private static final Pattern ACCOUNT_ID_PATTERN = Pattern.compile("^[A-Za-z0-9]{9}$");
 
-    public TokenService(JwtTokenProvider jwtTokenProvider, ConfigFieldRepository configFieldRepository) {
+    public TokenService(JwtTokenProvider jwtTokenProvider, AccountRepository accountRepository) {
         this.jwtTokenProvider = jwtTokenProvider;
-        this.configFieldRepository = configFieldRepository;
+        this.accountRepository = accountRepository;
     }
 
     /**
@@ -46,17 +46,17 @@ public class TokenService {
         }
 
         // Check if API key exists and is active
-        var configField = configFieldRepository.findByApiKeyAndIsActive(apiKey, 1);
+        var configField = accountRepository.findByApiKeyAndIsActive(apiKey, 1);
         if (configField.isEmpty()) {
             log.warn("API key not found or not active: {}", apiKey);
             throw new IllegalArgumentException("API key not found or inactive");
         }
 
-        ConfigFields cf = configField.get();
+        Account account = configField.get();
 
         // Verify accountId matches
-        if (!cf.getAccountId().equals(accountId)) {
-            log.warn("Account ID mismatch for API key: {} expected: {}, got: {}", apiKey, cf.getAccountId(), accountId);
+        if (!account.getAccountId().equals(accountId)) {
+            log.warn("Account ID mismatch for API key: {} expected: {}, got: {}", apiKey, account.getAccountId(), accountId);
             throw new IllegalArgumentException("Account ID mismatch");
         }
 
@@ -64,7 +64,7 @@ public class TokenService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("apiKey", apiKey);
         claims.put("accountId", accountId);
-        claims.put("portfolio", cf.getPortfolio());
+        claims.put("portfolio", account.getPortfolio());
 
         // Generate token
         String token = jwtTokenProvider.generateToken(claims);

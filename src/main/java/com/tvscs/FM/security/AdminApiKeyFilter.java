@@ -1,8 +1,8 @@
 package com.tvscs.FM.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tvscs.FM.models.ConfigFields;
-import com.tvscs.FM.repository.ConfigFieldRepository;
+import com.tvscs.FM.models.Account;
+import com.tvscs.FM.repository.AccountRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,11 +28,11 @@ import java.util.Map;
 public class AdminApiKeyFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(AdminApiKeyFilter.class);
-    private final ConfigFieldRepository configFieldRepository;
+    private final AccountRepository accountRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public AdminApiKeyFilter(ConfigFieldRepository configFieldRepository) {
-        this.configFieldRepository = configFieldRepository;
+    public AdminApiKeyFilter(AccountRepository accountRepository) {
+        this.accountRepository = accountRepository;
     }
 
     @Override
@@ -57,7 +57,7 @@ public class AdminApiKeyFilter extends OncePerRequestFilter {
 
         try {
             // Verify admin API key from database (portfolio = "Admin", is_active = 1)
-            var adminConfig = configFieldRepository.findByPortfolioAndIsActive("Admin", 1);
+            var adminConfig = accountRepository.findByPortfolioAndIsActive("Admin", 1);
             
             if (adminConfig.isEmpty()) {
                 logger.error("Admin configuration not found in database");
@@ -65,8 +65,8 @@ public class AdminApiKeyFilter extends OncePerRequestFilter {
                 return;
             }
 
-            ConfigFields adminConfigFields = adminConfig.get();
-            String expectedAdminKey = adminConfigFields.getApiKey();
+            Account adminAccount = adminConfig.get();
+            String expectedAdminKey = adminAccount.getApiKey();
 
             if (!providedKey.equals(expectedAdminKey)) {
                 logger.warn("Invalid admin API key attempt on path: {}", path);

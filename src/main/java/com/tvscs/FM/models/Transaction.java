@@ -19,19 +19,23 @@ import java.time.OffsetDateTime;
 public class Transaction {
 
     @Id
-    @Column(name = "id", length = 36)
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
+    private Long id;
 
-    @Column(name = "kid", length = 64, nullable = false, unique = true)
-    private String kid;
+    @Column(name = "vendor_id", length = 64, nullable = false, unique = true)
+    private String vendorId;
 
     @Column(name = "status", length = 50)
     private String status;
 
-    @Column(name = "reference_id", length = 64)
-    private String referenceId;
+    @Column(name = "vendor_reference_id", length = 64)
+    private String vendorReferenceId;
 
-    @Column(name = "transaction_id", length = 64)
+    @Column(name = "vendor_transaction_id", length = 64)
+    private String vendorTransactionId;
+
+    @Column(name = "transaction_id", length = 36, nullable = false, unique = true)
     private String transactionId;
 
     @CreationTimestamp
