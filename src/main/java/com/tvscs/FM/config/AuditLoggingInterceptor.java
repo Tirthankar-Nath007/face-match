@@ -1,8 +1,8 @@
 package com.tvscs.FM.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tvscs.FM.models.TransactionLog;
-import com.tvscs.FM.repository.TransactionLogRepository;
+import com.tvscs.FM.models.Audit;
+import com.tvscs.FM.repository.AuditRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -20,13 +20,13 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 public class AuditLoggingInterceptor implements HandlerInterceptor {
 
-    private final TransactionLogRepository auditLogRepository;
+    private final AuditRepository auditRepository;
     private final ObjectMapper objectMapper;
 
     private static final ThreadLocal<Long> requestStartTime = new ThreadLocal<>();
 
-    public AuditLoggingInterceptor(TransactionLogRepository auditLogRepository, ObjectMapper objectMapper) {
-        this.auditLogRepository = auditLogRepository;
+    public AuditLoggingInterceptor(AuditRepository auditRepository, ObjectMapper objectMapper) {
+        this.auditRepository = auditRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -69,7 +69,7 @@ public class AuditLoggingInterceptor implements HandlerInterceptor {
             String vendorId = extractVendorId(request);
             log.debug("[AUDIT] Vendor ID: {}", vendorId);
 
-            TransactionLog auditLog = TransactionLog.builder()
+            Audit audit = Audit.builder()
                     .vendorId(vendorId)
                     .endpoint(request.getRequestURI())
                     .httpMethod(request.getMethod())
@@ -90,16 +90,16 @@ public class AuditLoggingInterceptor implements HandlerInterceptor {
 
             CompletableFuture.runAsync(() -> {
                 try {
-                    auditLogRepository.save(auditLog);
+                    auditRepository.save(audit);
                     log.info("[AUDIT] SAVED: endpoint={}, status={}, duration={}ms, payload={}, response={}",
-                            auditLog.getEndpoint(),
-                            auditLog.getHttpStatus(),
+                            audit.getEndpoint(),
+                            audit.getHttpStatus(),
                             durationMs,
                             reqPayload != null ? "HAS_DATA" : "NULL",
                             respPayload != null ? "HAS_DATA" : "NULL");
                 } catch (Exception e) {
                     log.error("[AUDIT] Failed to save audit log for {}: {}",
-                            auditLog.getEndpoint(), e.getMessage());
+                            audit.getEndpoint(), e.getMessage());
                 }
             });
 
@@ -188,8 +188,8 @@ public class AuditLoggingInterceptor implements HandlerInterceptor {
     }
 
     private String extractVendorId(HttpServletRequest request) {
-        String vendorId = (String) request.getAttribute("auth.vendorId");
-        if (vendorId != null) return vendorId;
+        // Only extract vendorId for webhook requests - for /face-match, 
+        // the transaction doesn't exist in FM_TRANSACTIONS yet (created by webhook later)
         String webhookVendorId = (String) request.getAttribute("auth.webhookVendorId");
         if (webhookVendorId != null) return webhookVendorId;
         return null;

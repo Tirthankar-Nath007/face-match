@@ -16,7 +16,7 @@ import java.time.OffsetDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TransactionLog {
+public class Audit {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
